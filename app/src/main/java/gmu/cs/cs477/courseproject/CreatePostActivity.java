@@ -4,6 +4,11 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
@@ -22,6 +27,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 
 public class CreatePostActivity extends AppCompatActivity {
@@ -30,6 +36,7 @@ public class CreatePostActivity extends AppCompatActivity {
     private TextView counter;
     private Button postButton;
     private RelativeLayout input_wrapper;
+    private boolean posting = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,9 +69,8 @@ public class CreatePostActivity extends AppCompatActivity {
                 //TODO: Try to post
                 String postText = post.getText().toString();
                 if (!postText.equals("")) {
-                    postText.replace('\n', ' ');
-                    onBackPressed();
-                    Toast.makeText(getApplicationContext(), "Post created", Toast.LENGTH_SHORT).show();
+                    postText = postText.replace('\n', ' ');
+                    createPost(postText);
                 }
             }
         });
@@ -77,6 +83,24 @@ public class CreatePostActivity extends AppCompatActivity {
                 inputMethodManager.toggleSoftInputFromWindow(v.getApplicationWindowToken(), InputMethodManager.SHOW_FORCED, 0);            }
         });
 
+    }
+
+    @Override
+    public void onBackPressed(){
+        if (!post.getText().toString().equals("") && !posting) {
+            new AlertDialog.Builder(CreatePostActivity.this)
+                    .setMessage("Do you want to discard post?")
+                    .setCancelable(false)
+                    .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            CreatePostActivity.super.onBackPressed();
+                        }
+                    })
+                    .setNegativeButton("No", null)
+                    .show();
+        } else{
+            super.onBackPressed();
+        }
     }
 
 
@@ -107,6 +131,97 @@ public class CreatePostActivity extends AppCompatActivity {
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void createPost(String post){
+        PostCreator creator = new PostCreator();
+        creator.execute(post);
+    }
+
+
+    /**
+     * An AsyncTask class to create a post
+     */
+    private class PostCreator extends AsyncTask<String, Void, Void> implements LocationListener {
+        private Location lastKnownLocation = null;
+        private String error = null;
+        @Override
+        protected void onPreExecute(){
+            if (!isGPSEnabled()){
+                Toast.makeText(getApplicationContext(), "GPS is disabled", Toast.LENGTH_SHORT).show();
+                this.cancel(true);
+                return;
+            }
+
+            if (!isInternetEnabled()){
+                Toast.makeText(getApplicationContext(), "No internet connection", Toast.LENGTH_SHORT).show();
+                this.cancel(true);
+                return;
+            }
+
+            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            try {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+//                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
+            } catch(SecurityException se){
+            }
+            posting = true;
+            onBackPressed();
+        }
+
+        private boolean isGPSEnabled(){
+            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        }
+
+        private boolean isInternetEnabled(){
+            ConnectivityManager connectivityManager
+                    = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        }
+
+        // Get Posts
+        @Override
+        protected Void doInBackground(String... params) {
+            // Wait for GPS location
+            Long t = Calendar.getInstance().getTimeInMillis();
+            while ( lastKnownLocation== null && Calendar.getInstance().getTimeInMillis()-t<30000) {
+                try{ Thread.sleep(100);}
+                catch (InterruptedException ie){}
+            }
+            return null;
+        }
+
+        // Update the list view
+        @Override
+        protected void onPostExecute(Void result) {
+            if (error != null){
+                Toast.makeText(getApplicationContext(), error, Toast.LENGTH_SHORT).show();
+            } else{
+                Toast.makeText(getApplicationContext(), "Post created", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        @Override
+        public void onLocationChanged(Location location) {
+            lastKnownLocation = location;
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
         }
     }
 }
