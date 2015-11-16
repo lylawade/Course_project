@@ -5,6 +5,7 @@ package gmu.cs.cs477.courseproject;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Address;
+import android.location.Criteria;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
@@ -19,6 +20,7 @@ import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.format.DateUtils;
+import android.text.format.Time;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -33,6 +35,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import static gmu.cs.cs477.courseproject.Constants.*;
 
@@ -41,11 +44,15 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
     private ListView postsList;
     private PostAdapter adapter;
     private FloatingActionButton fab;
+    private Location lastKnownLocation;
+    private LocationUpdater updater;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        updater = new LocationUpdater();
         refreshLayout = (SwipeRefreshLayout) findViewById(R.id.refreshLayout);
         postsList = (ListView) findViewById(R.id.postsList);
         refreshLayout.setOnRefreshListener(this);
@@ -89,8 +96,7 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
     /**
      * An AsyncTask class to retrieve and load listview with posts
      */
-    private class PostsLoader extends AsyncTask<Void, Void, ArrayList<Post>> implements LocationListener {
-        private Location lastKnownLocation = null;
+    private class PostsLoader extends AsyncTask<Void, Void, ArrayList<Post>>  {
         private String error = null;
         @Override
         protected void onPreExecute(){
@@ -108,11 +114,13 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
                 return;
             }
 
-            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            try {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-//                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
-            } catch(SecurityException se){
+            if (lastKnownLocation == null) {
+                LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                try {
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, updater);
+                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, updater);
+                } catch (SecurityException se) {
+                }
             }
         }
 
@@ -131,13 +139,18 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
         // Get Posts
         @Override
         protected ArrayList<Post> doInBackground(Void... params) {
-            // Wait for GPS location
-            Long t = Calendar.getInstance().getTimeInMillis();
-            while ( lastKnownLocation== null && Calendar.getInstance().getTimeInMillis()-t<30000) {
-                try{ Thread.sleep(100);}
-                catch (InterruptedException ie){}
-            };
-
+            long howOldIsTooOld = TimeUnit.MINUTES.toMillis(10);
+            if (lastKnownLocation == null || (new Date()).getTime() - lastKnownLocation.getTime() > howOldIsTooOld) {
+                // Wait for GPS location
+                Long t = Calendar.getInstance().getTimeInMillis();
+                while (lastKnownLocation == null && Calendar.getInstance().getTimeInMillis() - t < 10000) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ie) {
+                    }
+                }
+                ;
+            }
             ArrayList<Post> posts = new ArrayList<>();
             for (int i =0; i < 100; i++){
                 posts.add(new Post(i, "Post number: " + i, new Date()));
@@ -157,7 +170,7 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
             postsList.setAdapter(adapter);
             refreshLayout.setRefreshing(false);
             if (lastKnownLocation != null) {
-                Toast.makeText(getApplicationContext(), getLastKnownAddress(), Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(), getLastKnownAddress() , Toast.LENGTH_LONG).show();
             } else{
                 Toast.makeText(getApplicationContext(), "Could not retrieve location", Toast.LENGTH_SHORT).show();
             }
@@ -180,6 +193,9 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
             return address + " " + city + ", " + state + ", "  + country + " " + postalCode;
         }
 
+    }
+
+    protected class LocationUpdater implements  LocationListener{
 
         @Override
         public void onLocationChanged(Location location) {
