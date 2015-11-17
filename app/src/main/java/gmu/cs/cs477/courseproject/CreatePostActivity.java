@@ -10,6 +10,7 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
+import android.support.annotation.NonNull;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -79,14 +80,15 @@ public class CreatePostActivity extends AppCompatActivity {
         input_wrapper.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                InputMethodManager inputMethodManager=(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-                inputMethodManager.toggleSoftInputFromWindow(v.getApplicationWindowToken(), InputMethodManager.SHOW_FORCED, 0);            }
+                InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                inputMethodManager.toggleSoftInputFromWindow(v.getApplicationWindowToken(), InputMethodManager.SHOW_FORCED, 0);
+            }
         });
 
     }
 
     @Override
-    public void onBackPressed(){
+    public void onBackPressed() {
         if (!post.getText().toString().equals("") && !posting) {
             new AlertDialog.Builder(CreatePostActivity.this)
                     .setMessage("Do you want to discard post?")
@@ -98,7 +100,7 @@ public class CreatePostActivity extends AppCompatActivity {
                     })
                     .setNegativeButton("No", null)
                     .show();
-        } else{
+        } else {
             super.onBackPressed();
         }
     }
@@ -134,94 +136,48 @@ public class CreatePostActivity extends AppCompatActivity {
         }
     }
 
-    private void createPost(String post){
-        PostCreator creator = new PostCreator();
-        creator.execute(post);
+    private void createPost(@NonNull final String post) {
+        new GPSLocator(this, new Runnable() {
+            @Override
+            public void run() {
+                PostCreator creator = new PostCreator();
+                creator.execute(post);
+            }
+        }, new Runnable() {
+            @Override
+            public void run() {
+            }
+        }).execute();
     }
 
 
     /**
      * An AsyncTask class to create a post
      */
-    private class PostCreator extends AsyncTask<String, Void, Void> implements LocationListener {
-        private Location lastKnownLocation = null;
-        private String error = null;
+    private class PostCreator extends AsyncTask<String, Void, Void> {
         @Override
-        protected void onPreExecute(){
-            if (!isGPSEnabled()){
-                Toast.makeText(getApplicationContext(), "GPS is disabled", Toast.LENGTH_SHORT).show();
-                this.cancel(true);
-                return;
-            }
-
-            if (!isInternetEnabled()){
+        protected void onPreExecute() {
+            if (!Utils.isInternetEnabled(getApplicationContext())) {
                 Toast.makeText(getApplicationContext(), "No internet connection", Toast.LENGTH_SHORT).show();
                 this.cancel(true);
                 return;
-            }
-
-            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            try {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-//                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
-            } catch(SecurityException se){
             }
             posting = true;
             onBackPressed();
         }
 
-        private boolean isGPSEnabled(){
-            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        }
-
-        private boolean isInternetEnabled(){
-            ConnectivityManager connectivityManager
-                    = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-        }
-
         // Get Posts
         @Override
-        protected Void doInBackground(String... params) {
-            // Wait for GPS location
-            Long t = Calendar.getInstance().getTimeInMillis();
-            while ( lastKnownLocation== null && Calendar.getInstance().getTimeInMillis()-t<30000) {
-                try{ Thread.sleep(100);}
-                catch (InterruptedException ie){}
-            }
+        protected Void doInBackground(@NonNull final String... params) {
+            Post post = new Post(0, params[0], new Date());
+            //TODO: send post to cloud
             return null;
         }
 
         // Update the list view
         @Override
         protected void onPostExecute(Void result) {
-            if (error != null){
-                Toast.makeText(getApplicationContext(), error, Toast.LENGTH_SHORT).show();
-            } else{
-                Toast.makeText(getApplicationContext(), "Post created", Toast.LENGTH_SHORT).show();
-            }
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-            lastKnownLocation = location;
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-
+            Toast.makeText(getApplicationContext(), "Post created", Toast.LENGTH_SHORT).show();
         }
     }
 }

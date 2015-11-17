@@ -1,7 +1,6 @@
 package gmu.cs.cs477.courseproject;
 
 
-
 import android.content.Context;
 import android.content.Intent;
 import android.location.Address;
@@ -15,6 +14,7 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -39,20 +39,17 @@ import java.util.concurrent.TimeUnit;
 
 import static gmu.cs.cs477.courseproject.Constants.*;
 
-public class MainActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener{
+public class MainActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener {
     private SwipeRefreshLayout refreshLayout;
     private ListView postsList;
     private PostAdapter adapter;
     private FloatingActionButton fab;
-    private Location lastKnownLocation;
-    private LocationUpdater updater;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        updater = new LocationUpdater();
         refreshLayout = (SwipeRefreshLayout) findViewById(R.id.refreshLayout);
         postsList = (ListView) findViewById(R.id.postsList);
         refreshLayout.setOnRefreshListener(this);
@@ -84,75 +81,45 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
 
     @Override
     public void onRefresh() {
-            loadData();
+        loadData();
     }
 
-    private void loadData(){
-        PostsLoader loader = new PostsLoader();
-        loader.execute();
+    private void loadData() {
+        new GPSLocator(this, new Runnable() {
+            @Override
+            public void run() {
+                refreshLayout.setRefreshing(false);
+                PostsLoader loader = new PostsLoader();
+                loader.execute();
+            }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                refreshLayout.setRefreshing(false);
+            }
+        }).execute();
     }
-
 
     /**
      * An AsyncTask class to retrieve and load listview with posts
      */
-    private class PostsLoader extends AsyncTask<Void, Void, ArrayList<Post>>  {
-        private String error = null;
-        @Override
-        protected void onPreExecute(){
-            if (!isGPSEnabled()){
-                Toast.makeText(getApplicationContext(), "GPS is disabled", Toast.LENGTH_SHORT).show();
-                refreshLayout.setRefreshing(false);
-                this.cancel(true);
-                return;
-            }
+    private class PostsLoader extends AsyncTask<Void, Void, ArrayList<Post>> {
 
-            if (!isInternetEnabled()){
+        @Override
+        protected void onPreExecute() {
+            if (!Utils.isInternetEnabled(getApplicationContext())) {
                 Toast.makeText(getApplicationContext(), "No internet connection", Toast.LENGTH_SHORT).show();
                 refreshLayout.setRefreshing(false);
                 this.cancel(true);
                 return;
             }
-
-            if (lastKnownLocation == null) {
-                LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                try {
-                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, updater);
-                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, updater);
-                } catch (SecurityException se) {
-                }
-            }
-        }
-
-        private boolean isGPSEnabled(){
-            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        }
-
-        private boolean isInternetEnabled(){
-            ConnectivityManager connectivityManager
-                    = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
         }
 
         // Get Posts
         @Override
         protected ArrayList<Post> doInBackground(Void... params) {
-            long howOldIsTooOld = TimeUnit.MINUTES.toMillis(10);
-            if (lastKnownLocation == null || (new Date()).getTime() - lastKnownLocation.getTime() > howOldIsTooOld) {
-                // Wait for GPS location
-                Long t = Calendar.getInstance().getTimeInMillis();
-                while (lastKnownLocation == null && Calendar.getInstance().getTimeInMillis() - t < 10000) {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException ie) {
-                    }
-                }
-                ;
-            }
             ArrayList<Post> posts = new ArrayList<>();
-            for (int i =0; i < 100; i++){
+            for (int i = 0; i < 100; i++) {
                 posts.add(new Post(i, "Post number: " + i, new Date()));
             }
             return posts;
@@ -160,63 +127,13 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
 
         // Update the list view
         @Override
-        protected void onPostExecute(ArrayList<Post> result) {
-            if (error != null){
-                Toast.makeText(getApplicationContext(), error, Toast.LENGTH_SHORT).show();
-                refreshLayout.setRefreshing(false);
-                return;
-            }
+        protected void onPostExecute(@NonNull final ArrayList<Post> result) {
             adapter = new PostAdapter(result);
             postsList.setAdapter(adapter);
             refreshLayout.setRefreshing(false);
-            if (lastKnownLocation != null) {
-                Toast.makeText(getApplicationContext(), getLastKnownAddress() , Toast.LENGTH_LONG).show();
-            } else{
-                Toast.makeText(getApplicationContext(), "Could not retrieve location", Toast.LENGTH_SHORT).show();
-            }
-        }
-
-        private String getLastKnownAddress(){
-            Geocoder geocoder;
-            List<Address> addresses = null;
-            geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
-            try {
-                addresses = geocoder.getFromLocation(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude(), 1); // Here 1 represent max location result to returned, by documents it recommended 1 to 5
-            } catch (IOException e){
-                return "Could not get address";
-            }
-            String address = addresses.get(0).getAddressLine(0); // If any additional address line present than only, check with max available address lines by getMaxAddressLineIndex()
-            String city = addresses.get(0).getLocality();
-            String state = addresses.get(0).getAdminArea();
-            String country = addresses.get(0).getCountryName();
-            String postalCode = addresses.get(0).getPostalCode();
-            return address + " " + city + ", " + state + ", "  + country + " " + postalCode;
-        }
-
-    }
-
-    protected class LocationUpdater implements  LocationListener{
-
-        @Override
-        public void onLocationChanged(Location location) {
-            lastKnownLocation = location;
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-
         }
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

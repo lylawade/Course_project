@@ -1,6 +1,7 @@
 package gmu.cs.cs477.courseproject;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,9 +14,9 @@ import java.util.ArrayList;
 import java.util.Date;
 
 public class PostAdapter extends BaseAdapter implements ListAdapter {
-    ArrayList<Post> posts = new ArrayList<>();
+    private final ArrayList<Post> posts;
 
-    public PostAdapter(ArrayList<Post> posts) {
+    public PostAdapter(@NonNull final ArrayList<Post> posts) {
         this.posts = posts;
     }
 
