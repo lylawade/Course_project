@@ -1,41 +1,23 @@
 package gmu.cs.cs477.courseproject;
 
 
-import android.content.Context;
 import android.content.Intent;
-import android.location.Address;
-import android.location.Criteria;
-import android.location.Geocoder;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.graphics.Color;
 import android.os.AsyncTask;
-import android.os.Handler;
-import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.format.DateUtils;
-import android.text.format.Time;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.Toast;
-
-import java.io.IOException;
-import java.net.InetAddress;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 import static gmu.cs.cs477.courseproject.Constants.*;
 
@@ -53,6 +35,7 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
         refreshLayout = (SwipeRefreshLayout) findViewById(R.id.refreshLayout);
         postsList = (ListView) findViewById(R.id.postsList);
         refreshLayout.setOnRefreshListener(this);
+        refreshLayout.setColorSchemeColors(Color.rgb(135, 206, 250), Color.rgb(135, 206, 235), Color.rgb(0, 191, 255));
         fab = (FloatingActionButton) findViewById(R.id.actionButton);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
