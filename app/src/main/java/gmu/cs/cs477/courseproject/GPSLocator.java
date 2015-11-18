@@ -8,6 +8,7 @@ import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.widget.Toast;
 import java.util.Calendar;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 final class GPSLocator  extends AsyncTask<Void, Void, Void>{
@@ -35,6 +36,11 @@ final class GPSLocator  extends AsyncTask<Void, Void, Void>{
             try {
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, tracker);
                 locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, tracker);
+//                locationManager.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 0, 0, tracker);
+//                List<String> providers = locationManager.getAllProviders();
+//                for (String provider: providers){
+//                    tracker.setLastKnownLocation(locationManager.getLastKnownLocation(provider));
+//                }
             } catch (SecurityException se) {
                 // Not gonna happen
             }
@@ -64,8 +70,8 @@ final class GPSLocator  extends AsyncTask<Void, Void, Void>{
         while (lastKnownLocation == null && Calendar.getInstance().getTimeInMillis() - t < 10000) {
             try {
                 Thread.sleep(100);
-            } catch (InterruptedException ie) {
-            }
+            } catch (InterruptedException ie) {}
+            lastKnownLocation = tracker.getLastKnownLocation();
         }
     }
 

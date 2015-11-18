@@ -13,6 +13,9 @@ public class LocationTracker implements LocationListener {
         return lastKnownLocation;
     }
 
+    public void setLastKnownLocation(Location location){
+        this.lastKnownLocation = location;
+    }
     @Override
     public void onLocationChanged(Location location) {
         lastKnownLocation = location;
