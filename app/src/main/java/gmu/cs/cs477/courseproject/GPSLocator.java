@@ -75,12 +75,21 @@ final class GPSLocator  extends AsyncTask<Void, Void, Void>{
             Toast.makeText(context, "Could not retrieve location", Toast.LENGTH_SHORT).show();
             onError.run();
         } else{
-            Toast.makeText(context, tracker.getLastKnownLocation().toString(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, prettyPrintLocation(tracker.getLastKnownLocation()), Toast.LENGTH_LONG).show();
             onSuccess.run();
         }
     }
 
-    // Testing method
+    // Testing methods
+
+    private String prettyPrintLocation(@NonNull Location location){
+        String prettyPrint = "Lat: " + location.getLatitude() + ", long: " + location.getLongitude();
+        prettyPrint += " from " + location.getProvider();
+        return prettyPrint;
+    }
+
+    //Use if you want to get the location in address form
+
 //    private String getLastKnownAddress(){
 //        Location lastKnownLocation  = tracker.getLastKnownLocation();
 //        Geocoder geocoder;
