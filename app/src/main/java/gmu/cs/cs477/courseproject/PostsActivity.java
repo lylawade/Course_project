@@ -21,7 +21,7 @@ import java.util.Date;
 
 import static gmu.cs.cs477.courseproject.Constants.*;
 
-public class MainActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener {
+public class PostsActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener, GPSClient {
     private SwipeRefreshLayout refreshLayout;
     private ListView postsList;
     private PostAdapter adapter;
@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_posts);
         refreshLayout = (SwipeRefreshLayout) findViewById(R.id.refreshLayout);
         postsList = (ListView) findViewById(R.id.postsList);
         refreshLayout.setOnRefreshListener(this);
@@ -40,14 +40,14 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, CreatePostActivity.class);
+                Intent intent = new Intent(PostsActivity.this, CreatePostActivity.class);
                 startActivity(intent);
             }
         });
         postsList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Intent intent = new Intent(MainActivity.this, ViewPostActivity.class);
+                Intent intent = new Intent(PostsActivity.this, ViewPostActivity.class);
                 intent.putExtra(POST_TEXT, adapter.getPostText(position));
                 intent.putExtra(POST_TIME, DateUtils.getRelativeTimeSpanString(adapter.getPostTime(position).getTime()));
                 startActivity(intent);
@@ -68,19 +68,27 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
     }
 
     private void loadData() {
-        new GPSLocator(this, new Runnable() {
-            @Override
-            public void run() {
-                refreshLayout.setRefreshing(false);
-                PostsLoader loader = new PostsLoader();
-                loader.execute();
-            }
-        }, new Runnable() {
-            @Override
-            public void run() {
-                refreshLayout.setRefreshing(false);
-            }
-        }).execute();
+        new GPSLocator(getApplicationContext(), this).execute();
+    }
+
+    @Override
+    public void onGPSDisabled() {
+        refreshLayout.setRefreshing(false);
+    }
+
+    @Override
+    public void onGPSEnabled() {}
+
+    @Override
+    public void onLocationFound() {
+        refreshLayout.setRefreshing(false);
+        PostsLoader loader = new PostsLoader();
+        loader.execute();
+    }
+
+    @Override
+    public void onLocationNotFound() {
+        refreshLayout.setRefreshing(false);
     }
 
     /**

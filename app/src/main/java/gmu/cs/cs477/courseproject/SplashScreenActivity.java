@@ -4,18 +4,15 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Handler;
-import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.Window;
-import android.view.WindowManager;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 
-public class SplashScreenActivity extends AppCompatActivity {
+public class SplashScreenActivity extends AppCompatActivity implements GPSClient {
     boolean created = false;
 
     @Override
@@ -35,43 +32,20 @@ public class SplashScreenActivity extends AppCompatActivity {
         }, 1000);
     }
 
-    private void checkGPS(){
-        new GPSLocator(this, new Runnable() {
-            @Override
-            public void run() {
-                leave();
-            }
-        }, new Runnable() {
-            @Override
-            public void run() {
-                new AlertDialog.Builder(SplashScreenActivity.this)
-                        .setMessage("GPS is disabled. Do you want to enable it?")
-                        .setCancelable(false)
-                        .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                created = true;
-                                Intent gpsOptionsIntent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                                startActivity(gpsOptionsIntent);
-                            }
-                        })
-                        .setNegativeButton("No", new DialogInterface.OnClickListener(){
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                leave();
-                            }}).show();
-            }
-        }).execute();
+    private void checkGPS() {
+        new GPSLocator(getApplicationContext(), this).execute();
     }
-    private void leave(){
-        Intent intent = new Intent(this, MainActivity.class);
+
+    private void leave() {
+        Intent intent = new Intent(this, PostsActivity.class);
         startActivity(intent);
         finish();
     }
 
     @Override
-    public void onResume(){
+    public void onResume() {
         super.onResume();
-        if (created){
+        if (created) {
             checkGPS();
         }
     }
@@ -84,5 +58,43 @@ public class SplashScreenActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onGPSDisabled() {
+        new AlertDialog.Builder(SplashScreenActivity.this)
+                .setMessage("GPS is disabled. Do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        created = true;
+                        Intent gpsOptionsIntent = new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        startActivity(gpsOptionsIntent);
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (Utils.isGPSEnabled(SplashScreenActivity.this)) {
+                            checkGPS();
+                        } else {
+                            leave();
+                        }
+                    }
+                }).show();
+    }
+
+    @Override
+    public void onGPSEnabled() {
+    }
+
+    @Override
+    public void onLocationFound() {
+        leave();
+    }
+
+    @Override
+    public void onLocationNotFound() {
+        leave();
     }
 }

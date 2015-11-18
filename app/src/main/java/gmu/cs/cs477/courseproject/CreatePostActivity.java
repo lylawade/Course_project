@@ -3,12 +3,6 @@ package gmu.cs.cs477.courseproject;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NavUtils;
@@ -26,18 +20,16 @@ import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 
-public class CreatePostActivity extends AppCompatActivity {
+public class CreatePostActivity extends AppCompatActivity implements  GPSClient{
 
     private EditText post;
     private TextView counter;
     private Button postButton;
     private RelativeLayout input_wrapper;
     private boolean posting = false;
+    private String postText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,10 +60,10 @@ public class CreatePostActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 //TODO: Try to post
-                String postText = post.getText().toString();
+                postText = post.getText().toString();
                 if (!postText.equals("")) {
                     postText = postText.replace('\n', ' ');
-                    createPost(postText);
+                    createPost();
                 }
             }
         });
@@ -136,19 +128,27 @@ public class CreatePostActivity extends AppCompatActivity {
         }
     }
 
-    private void createPost(@NonNull final String post) {
-        new GPSLocator(this, new Runnable() {
-            @Override
-            public void run() {
-                PostCreator creator = new PostCreator();
-                creator.execute(post);
-            }
-        }, new Runnable() {
-            @Override
-            public void run() {
-            }
-        }).execute();
+    private void createPost() {
+        new GPSLocator(getApplicationContext(), this).execute();
     }
+
+    @Override
+    public void onGPSDisabled() {}
+
+    @Override
+    public void onGPSEnabled() {
+        posting = true;
+        onBackPressed();
+    }
+
+    @Override
+    public void onLocationFound() {
+        PostCreator creator = new PostCreator();
+        creator.execute(postText);
+    }
+
+    @Override
+    public void onLocationNotFound() {}
 
 
     /**
@@ -162,8 +162,6 @@ public class CreatePostActivity extends AppCompatActivity {
                 this.cancel(true);
                 return;
             }
-            posting = true;
-            onBackPressed();
         }
 
         // Get Posts

@@ -12,13 +12,12 @@ import java.util.concurrent.TimeUnit;
 
 final class GPSLocator  extends AsyncTask<Void, Void, Void>{
     private static LocationTracker tracker = new LocationTracker();
-    private Context context;
-    private Runnable onSuccess, onError;
+    private final Context context;
+    private final GPSClient client;
 
-    public GPSLocator(@NonNull final Context context, @NonNull final Runnable onSuccess, @NonNull final Runnable onError){
+    public GPSLocator(@NonNull final Context context, @NonNull final GPSClient client){
         this.context = context;
-        this.onSuccess = onSuccess;
-        this.onError = onError;
+        this.client = client;
     }
 
     @Override
@@ -26,9 +25,10 @@ final class GPSLocator  extends AsyncTask<Void, Void, Void>{
         if (!Utils.isGPSEnabled(context)){
             Toast.makeText(context, "GPS is disabled", Toast.LENGTH_SHORT).show();
             this.cancel(true);
-            onError.run();
+            client.onGPSDisabled();
             return;
         }
+        client.onGPSEnabled();
 
         if (tracker.getLastKnownLocation() == null) {
             LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
@@ -73,10 +73,10 @@ final class GPSLocator  extends AsyncTask<Void, Void, Void>{
     protected void onPostExecute(Void result) {
         if (tracker.getLastKnownLocation() == null){
             Toast.makeText(context, "Could not retrieve location", Toast.LENGTH_SHORT).show();
-            onError.run();
+            client.onLocationNotFound();
         } else{
             Toast.makeText(context, prettyPrintLocation(tracker.getLastKnownLocation()), Toast.LENGTH_LONG).show();
-            onSuccess.run();
+            client.onLocationFound();
         }
     }
 
